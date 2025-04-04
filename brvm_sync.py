@@ -1,31 +1,28 @@
 import os
 import io
+import json
 import re
 import fitz
 import pandas as pd
-from datetime import datetime
 from collections import defaultdict
+from datetime import datetime
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 
-# 🧡 Titres à surveiller en priorité
-FAVORIS = ["ORANGE COTE D'IVOIRE (ORAC)", "SAPH CI (SAPH)", "SONATEL SN (SNTS)"]
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
-FOLDER_ID = '1w2W-SI19l3qgpJKOEGCIiKS2fOIwx3OY'  # <-- à personnaliser
+FOLDER_ID = '1w2W-SI19l3qgpJKOEGCIiKS2fOIwx3OY'  # 🔁 Mets ici l'ID de ton dossier Drive
 BULLETIN_DIR = 'bulletins'
-DATA_FILE = 'data/portefeuille.csv'
+DATA_FILE = 'data/recommandations.xlsx'
 
-# 🔐 Authentification
+# 🔐 Authentification sans interaction
 def authenticate_drive():
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-    else:
-        flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
-        creds = flow.run_local_server(port=0)
-        with open('token.json', 'w') as token:
-            token.write(creds.to_json())
+    with open("credentials.json") as f:
+        creds_info = json.load(f)
+    with open("token.json") as f:
+        token_info = json.load(f)
+
+    creds = Credentials.from_authorized_user_info(token_info, SCOPES)
     return build('drive', 'v3', credentials=creds)
 
 # 📥 Téléchargement
@@ -46,7 +43,7 @@ def download_bulletins():
                     _, done = downloader.next_chunk()
             print(f"⬇️ Téléchargé : {name}")
 
-# 📄 Extraction des hausses/baisses
+# 🧠 Extraction verticale des tops hausses/baisses
 def extract_top_movers_from_pdf(path, date_str):
     with fitz.open(path) as doc:
         text = "\n".join(page.get_text() for page in doc)
@@ -64,12 +61,11 @@ def extract_top_movers_from_pdf(path, date_str):
             section = "baisse"
             i += 4
         elif section and line:
+            titre = lines[i].strip()
+            if re.match(r'^\d[\d\s]*$', titre) or "%" in titre or len(titre) < 4:
+                i += 1
+                continue
             try:
-                titre = lines[i].strip()
-                # Si le titre ressemble à un montant, on saute
-                if re.match(r'^\d[\d\s]*$', titre) or "%" in titre or len(titre) < 4:
-                    i += 1
-                    continue
                 cours = int(lines[i+1].replace(" ", "").replace("FCFA", ""))
                 var_jour = float(lines[i+2].replace("%", "").replace(",", "."))
                 var_annuelle = float(lines[i+3].replace("%", "").replace(",", "."))
@@ -88,10 +84,11 @@ def extract_top_movers_from_pdf(path, date_str):
             i += 1
     return data
 
-# 📊 Génération du tableau de bord
+# 📊 Mise à jour du portefeuille
 def update_portfolio():
-    os.makedirs('data', exist_ok=True)
     all_data = []
+    os.makedirs('data', exist_ok=True)
+
     for file in sorted(os.listdir(BULLETIN_DIR)):
         if file.endswith(".pdf"):
             date_match = re.search(r'\d{4}-\d{2}-\d{2}', file)
@@ -102,8 +99,8 @@ def update_portfolio():
             all_data.extend(extract_top_movers_from_pdf(path, date_str))
 
     df = pd.DataFrame(all_data)
-    df.to_csv(DATA_FILE, index=False)
 
+    # Calcul des recommandations
     stats = defaultdict(lambda: {'hausses': 0, 'baisses': 0, 'total_var': 0.0, 'last_var': 0.0, 'last_date': ''})
     for _, row in df.iterrows():
         t = row['titre']
@@ -134,72 +131,9 @@ def update_portfolio():
         })
 
     df_final = pd.DataFrame(portfolio)
-    export_excel(df_final)
-    df_final.to_csv('data/recommandations.csv', index=False)
     df_final = df_final.sort_values(by='Variation Totale (%)', ascending=False)
-    print("\n📋 RECOMMANDATIONS DU JOUR\n")
-    print(df_final.to_string(index=False))
-    export_excel(df_final)
-
-def export_excel(df_final):
-    from openpyxl import Workbook
-    from openpyxl.styles import PatternFill, Font
-    from openpyxl.utils.dataframe import dataframe_to_rows
-    from openpyxl.chart import BarChart, Reference
-
-    wb = Workbook()
-
-    # Onglet principal : Recommandations
-    ws1 = wb.active
-    ws1.title = "Recommandations"
-    fills = {
-        '🟢 Achat': PatternFill(start_color='C6EFCE', end_color='C6EFCE', fill_type='solid'),
-        '🔴 Vente': PatternFill(start_color='FFC7CE', end_color='FFC7CE', fill_type='solid'),
-        '🟡 Observer': PatternFill(start_color='FFEB9C', end_color='FFEB9C', fill_type='solid')
-    }
-
-    for r_idx, row in enumerate(dataframe_to_rows(df_final, index=False, header=True), 1):
-        for c_idx, value in enumerate(row, 1):
-            cell = ws1.cell(row=r_idx, column=c_idx, value=value)
-            if r_idx == 1:
-                cell.font = Font(bold=True)
-            elif c_idx == 6:
-                fill = fills.get(value, None)
-                if fill:
-                    cell.fill = fill
-
-    for col in ws1.columns:
-        max_length = max(len(str(cell.value)) if cell.value else 0 for cell in col)
-        ws1.column_dimensions[col[0].column_letter].width = max_length + 2
-
-    # Onglet Favoris
-    ws2 = wb.create_sheet("Favoris")
-    df_fav = df_final[df_final['Titre'].isin(FAVORIS)]
-    for r_idx, row in enumerate(dataframe_to_rows(df_fav, index=False, header=True), 1):
-        for c_idx, value in enumerate(row, 1):
-            cell = ws2.cell(row=r_idx, column=c_idx, value=value)
-            if r_idx == 1:
-                cell.font = Font(bold=True)
-
-    for col in ws2.columns:
-        max_length = max(len(str(cell.value)) if cell.value else 0 for cell in col)
-        ws2.column_dimensions[col[0].column_letter].width = max_length + 2
-
-    # Graphique : Jours en Hausse vs Baisse
-    chart = BarChart()
-    chart.title = "Favoris – Hausses vs Baisses"
-    chart.y_axis.title = "Nombre de jours"
-    chart.x_axis.title = "Titre"
-    data_ref = Reference(ws2, min_col=2, max_col=3, min_row=1, max_row=ws2.max_row)
-    cats_ref = Reference(ws2, min_col=1, min_row=2, max_row=ws2.max_row)
-    chart.add_data(data_ref, titles_from_data=True)
-    chart.set_categories(cats_ref)
-    ws2.add_chart(chart, f"H2")
-
-    # Enregistrer
-    wb.save("data/recommandations.xlsx")
-    print("📈 Excel enrichi généré : data/recommandations.xlsx")
-
+    df_final.to_excel(DATA_FILE, index=False)
+    print("✅ Recommandations mises à jour dans :", DATA_FILE)
 
 # 🚀 Exécution
 if __name__ == "__main__":
