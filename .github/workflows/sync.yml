@@ -30,7 +30,7 @@ jobs:
       - name: 👀 Afficher le début de credentials.json
         run: |
           head -n 5 credentials.json
-
+          head -n 5 token.json
 
       - name: 🔄 Exécuter le script de synchronisation
         run: python brvm_sync.py
