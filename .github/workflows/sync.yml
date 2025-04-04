@@ -26,6 +26,11 @@ jobs:
         run: |
           echo "${{ secrets.CREDENTIALS_JSON }}" > credentials.json
           echo "${{ secrets.TOKEN_JSON }}" > token.json
+          
+      - name: 👀 Afficher le début de credentials.json
+        run: |
+          head -n 5 credentials.json
+
 
       - name: 🔄 Exécuter le script de synchronisation
         run: python brvm_sync.py
