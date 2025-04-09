@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-
+st.set_page_config(page_title="Dashboard BRVM", layout="wide")
 # --- CONFIG ---
 DATA_FILE = 'data/recommandations.xlsx'
 FAVORIS = ["ORANGE COTE D'IVOIRE (ORAC)", "SAPH CI (SAPH)", "SONATEL SN (SNTS)"]
@@ -57,7 +57,7 @@ if st.sidebar.checkbox("🎯 Activer mode Favoris+", value=True):
         st.plotly_chart(fig_fav, use_container_width=True)
 
 
-st.set_page_config(page_title="Dashboard BRVM", layout="wide")
+
 st.title("📊 Tableau de Bord BRVM – Portefeuille Intelligent")
 st.markdown("Suivi automatique des opportunités sur la BRVM avec recommandations achat/vente/observer.")
 
