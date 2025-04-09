@@ -99,6 +99,32 @@ def update_portfolio():
             all_data.extend(extract_top_movers_from_pdf(path, date_str))
 
     df = pd.DataFrame(all_data)
+# --- AJOUT STRATÉGIE PAR TITRE ---
+
+# Filtrer sur les 7 derniers jours
+df['date'] = pd.to_datetime(df['date'])
+last_days = df['date'].max() - pd.Timedelta(days=7)
+recent_df = df[df['date'] >= last_days]
+
+# Dictionnaire pour stocker la stratégie
+strategies = {}
+
+# Regrouper par titre
+for titre, group in recent_df.groupby('titre'):
+    nb_hausses = group[group['type'] == 'hausse'].shape[0]
+    nb_baisses = group[group['type'] == 'baisse'].shape[0]
+    variation_totale = group['variation_jour'].sum()
+
+    if nb_hausses >= 3 and variation_totale > 5:
+        strategie = "✅ Renforcer"
+    elif nb_baisses >= 3 and variation_totale < -5:
+        strategie = "⚠️ Risque de décrochage"
+    elif nb_hausses >= 1 and nb_baisses >= 1:
+        strategie = "👀 À surveiller"
+    else:
+        strategie = "➖ Neutre"
+
+    strategies[titre] = strategie
 
     # Calcul des recommandations
     stats = defaultdict(lambda: {'hausses': 0, 'baisses': 0, 'total_var': 0.0, 'last_var': 0.0, 'last_date': ''})
@@ -127,8 +153,10 @@ def update_portfolio():
             'Jours en Baisse': st['baisses'],
             'Variation Totale (%)': round(st['total_var'], 2),
             'Dernière Variation (%)': round(st['last_var'], 2),
-            'Recommandation': reco
+            'Recommandation': reco,
+            'Stratégie': strategies.get(titre, "Non évalué")
         })
+
 
     df_final = pd.DataFrame(portfolio)
     df_final = df_final.sort_values(by='Variation Totale (%)', ascending=False)
