@@ -127,35 +127,35 @@ for titre, group in recent_df.groupby('titre'):
     strategies[titre] = strategie
 
     # Calcul des recommandations
-    stats = defaultdict(lambda: {'hausses': 0, 'baisses': 0, 'total_var': 0.0, 'last_var': 0.0, 'last_date': ''})
-    for _, row in df.iterrows():
-        t = row['titre']
-        if row['type'] == 'hausse':
-            stats[t]['hausses'] += 1
-        else:
-            stats[t]['baisses'] += 1
-        stats[t]['total_var'] += row['variation_jour']
-        if row['date'] > stats[t]['last_date']:
-            stats[t]['last_var'] = row['variation_jour']
-            stats[t]['last_date'] = row['date']
+stats = defaultdict(lambda: {'hausses': 0, 'baisses': 0, 'total_var': 0.0, 'last_var': 0.0, 'last_date': ''})
+for _, row in df.iterrows():
+    t = row['titre']
+    if row['type'] == 'hausse':
+        stats[t]['hausses'] += 1
+    else:
+        stats[t]['baisses'] += 1
+    stats[t]['total_var'] += row['variation_jour']
+    if row['date'] > stats[t]['last_date']:
+        stats[t]['last_var'] = row['variation_jour']
+        stats[t]['last_date'] = row['date']
 
-    portfolio = []
-    for titre, st in stats.items():
-        if st['hausses'] >= 3 and st['total_var'] > 5:
-            reco = '🟢 Achat'
-        elif st['baisses'] >= 3 and st['total_var'] < -5:
-            reco = '🔴 Vente'
-        else:
-            reco = '🟡 Observer'
-        portfolio.append({
-            'Titre': titre,
-            'Jours en Hausse': st['hausses'],
-            'Jours en Baisse': st['baisses'],
-            'Variation Totale (%)': round(st['total_var'], 2),
-            'Dernière Variation (%)': round(st['last_var'], 2),
-            'Recommandation': reco,
-            'Stratégie': strategies.get(titre, "Non évalué")
-        })
+portfolio = []
+for titre, st in stats.items():
+    if st['hausses'] >= 3 and st['total_var'] > 5:
+        reco = '🟢 Achat'
+    elif st['baisses'] >= 3 and st['total_var'] < -5:
+        reco = '🔴 Vente'
+    else:
+        reco = '🟡 Observer'
+    portfolio.append({
+        'Titre': titre,
+        'Jours en Hausse': st['hausses'],
+        'Jours en Baisse': st['baisses'],
+        'Variation Totale (%)': round(st['total_var'], 2),
+        'Dernière Variation (%)': round(st['last_var'], 2),
+        'Recommandation': reco,
+        'Stratégie': strategies.get(titre, "Non évalué")
+    })
 
 
     df_final = pd.DataFrame(portfolio)
