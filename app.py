@@ -24,8 +24,8 @@ st.title("📊 Tableau de Bord BRVM – Portefeuille Intelligent")
 st.markdown("Suivi automatique des opportunités sur la BRVM avec recommandations achat/vente/observer.")
 
 # --- DEBUG TEMPORAIRE ---
-st.write("🔍 Colonnes disponibles :", df.columns.tolist())
-st.write("🔍 Aperçu des données :", df.head())
+#st.write("🔍 Colonnes disponibles :", df.columns.tolist())
+#st.write("🔍 Aperçu des données :", df.head())
 
 # --- Filtre Favoris
 show_favoris = st.sidebar.checkbox("🎯 Afficher uniquement mes favoris", value=False)
