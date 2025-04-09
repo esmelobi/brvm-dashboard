@@ -70,6 +70,12 @@ show_favoris = st.sidebar.checkbox("🎯 Afficher uniquement mes favoris", value
 if show_favoris:
     df = df[df['Titre'].isin(FAVORIS)]
 
+if "Stratégie" in df.columns:
+    strategie_selection = st.sidebar.selectbox("📌 Filtrer par stratégie", ["Toutes"] + df["Stratégie"].dropna().unique().tolist())
+    if strategie_selection != "Toutes":
+        df = df[df["Stratégie"] == strategie_selection]
+
+
 # --- Tableau principal
 st.subheader("🔍 Recommandations")
 st.dataframe(df, use_container_width=True)
