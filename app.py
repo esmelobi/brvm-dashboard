@@ -21,11 +21,10 @@ df = load_data()
 
 if st.sidebar.checkbox("🎯 Activer mode Favoris+", value=True):
     # (code du bloc Favoris+ ici)
-
 # --- SECTION FAVORIS BOOSTÉE ---
     st.subheader("🌟 Mes Titres Favoris")
     
-    favoris_df = df[df["Titre"].isin(FAVORIS)]
+favoris_df = df[df["Titre"].isin(FAVORIS)]
 
 if favoris_df.empty:
     st.info("Aucun de vos favoris ne figure dans les données actuelles.")
