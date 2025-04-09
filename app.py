@@ -4,7 +4,7 @@ import plotly.express as px
 st.set_page_config(page_title="Dashboard BRVM", layout="wide")
 # --- CONFIG ---
 DATA_FILE = 'data/recommandations.xlsx'
-FAVORIS = ["ORANGE COTE D'IVOIRE (ORAC)", "SAPH CI (SAPH)", "SONATEL SN (SNTS)"]
+FAVORIS = ["ORANGE COTE D'IVOIRE (ORAC)", "SAPH CI (SPHC)", "SONATEL SN (SNTS)"]
 
 # --- LOAD DATA ---
 @st.cache_data
