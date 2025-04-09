@@ -157,11 +157,10 @@ for titre, st in stats.items():
         'Stratégie': strategies.get(titre, "Non évalué")
     })
 
-
-    df_final = pd.DataFrame(portfolio)
-    df_final = df_final.sort_values(by='Variation Totale (%)', ascending=False)
-    df_final.to_excel(DATA_FILE, index=False)
-    print("✅ Recommandations mises à jour dans :", DATA_FILE)
+df_final = pd.DataFrame(portfolio)
+df_final = df_final.sort_values(by='Variation Totale (%)', ascending=False)
+df_final.to_excel(DATA_FILE, index=False)
+print("✅ Recommandations mises à jour dans :", DATA_FILE)
 
 # 🚀 Exécution
 if __name__ == "__main__":
