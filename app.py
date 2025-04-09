@@ -19,6 +19,47 @@ def load_data():
 
 df = load_data()
 
+if st.sidebar.checkbox("🎯 Activer mode Favoris+", value=True):
+    # (code du bloc Favoris+ ici)
+
+# --- SECTION FAVORIS BOOSTÉE ---
+st.subheader("🌟 Mes Titres Favoris")
+
+favoris_df = df[df["Titre"].isin(FAVORIS)]
+
+if favoris_df.empty:
+    st.info("Aucun de vos favoris ne figure dans les données actuelles.")
+else:
+    for _, row in favoris_df.iterrows():
+        couleur = {
+            "🟢 Achat": "green",
+            "🔴 Vente": "red",
+            "🟡 Observer": "orange"
+        }.get(row["Recommandation"], "gray")
+
+        st.markdown(
+            f"<div style='padding:8px; border-radius:6px; background-color:{couleur}; color:white;'>"
+            f"<b>{row['Titre']}</b><br>"
+            f"📈 Variation Totale : <b>{row['Variation Totale (%)']}%</b><br>"
+            f"📉 Dernière séance : <b>{row['Dernière Variation (%)']}%</b><br>"
+            f"🧠 Recommandation : <b>{row['Recommandation']}</b>"
+            f"</div><br>",
+            unsafe_allow_html=True
+        )
+
+    # --- Graphique sur les favoris
+    st.markdown("### 📊 Évolution globale de mes favoris")
+    fig_fav = px.bar(favoris_df.sort_values(by="Variation Totale (%)", ascending=False),
+                     x="Titre", y="Variation Totale (%)",
+                     color="Recommandation",
+                     color_discrete_map={
+                         "🟢 Achat": "#27AE60",
+                         "🔴 Vente": "#C0392B",
+                         "🟡 Observer": "#F1C40F"
+                     },
+                     title="Performance de mes favoris")
+    st.plotly_chart(fig_fav, use_container_width=True)
+
 st.set_page_config(page_title="Dashboard BRVM", layout="wide")
 st.title("📊 Tableau de Bord BRVM – Portefeuille Intelligent")
 st.markdown("Suivi automatique des opportunités sur la BRVM avec recommandations achat/vente/observer.")
