@@ -1,7 +1,9 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+
 st.set_page_config(page_title="Dashboard BRVM", layout="wide")
+
 # --- CONFIG ---
 DATA_FILE = 'data/recommandations.xlsx'
 FAVORIS = ["ORANGE COTE D'IVOIRE (ORAC)", "SAPH CI (SPHC)", "SONATEL SN (SNTS)"]
@@ -10,15 +12,17 @@ FAVORIS = ["ORANGE COTE D'IVOIRE (ORAC)", "SAPH CI (SPHC)", "SONATEL SN (SNTS)"]
 @st.cache_data
 def load_data():
     try:
-        df = pd.read_excel(DATA_FILE)
-        return df
+        df_main = pd.read_excel(DATA_FILE, sheet_name="Recommandations")
+        df_ytd = pd.read_excel(DATA_FILE, sheet_name="Top_YTD")
+        return df_main, df_ytd
     except Exception as e:
         st.error("❌ Erreur lors du chargement des données.")
         st.exception(e)
-        return pd.DataFrame()
+        return pd.DataFrame(), pd.DataFrame()
 
-df = load_data()
+df, df_ytd = load_data()
 
+# --- FAVORIS+ ---
 if st.sidebar.checkbox("🎯 Activer mode Favoris+", value=True):
     st.subheader("🌟 Mes Titres Favoris")
     favoris_df = df[df["Titre"].isin(FAVORIS)]
@@ -43,7 +47,6 @@ if st.sidebar.checkbox("🎯 Activer mode Favoris+", value=True):
                 unsafe_allow_html=True
             )
 
-        # --- Graphique sur les favoris
         st.markdown("### 📊 Évolution globale de mes favoris")
         fig_fav = px.bar(favoris_df.sort_values(by="Variation Totale (%)", ascending=False),
                          x="Titre", y="Variation Totale (%)",
@@ -56,16 +59,11 @@ if st.sidebar.checkbox("🎯 Activer mode Favoris+", value=True):
                          title="Performance de mes favoris")
         st.plotly_chart(fig_fav, use_container_width=True)
 
-
-
+# --- EN-TÊTE ---
 st.title("📊 Tableau de Bord BRVM – Portefeuille Intelligent")
 st.markdown("Suivi automatique des opportunités sur la BRVM avec recommandations achat/vente/observer.")
 
-# --- DEBUG TEMPORAIRE ---
-#st.write("🔍 Colonnes disponibles :", df.columns.tolist())
-#st.write("🔍 Aperçu des données :", df.head())
-
-# --- Filtre Favoris
+# --- FILTRES ---
 show_favoris = st.sidebar.checkbox("🎯 Afficher uniquement mes favoris", value=False)
 if show_favoris:
     df = df[df['Titre'].isin(FAVORIS)]
@@ -75,12 +73,11 @@ if "Stratégie" in df.columns:
     if strategie_selection != "Toutes":
         df = df[df["Stratégie"] == strategie_selection]
 
-
-# --- Tableau principal
+# --- TABLEAU PRINCIPAL ---
 st.subheader("🔍 Recommandations")
 st.dataframe(df, use_container_width=True)
 
-# --- Graphique Jours en Hausse / Baisse (avec sécurité)
+# --- GRAPHIQUE : Jours en Hausse / Baisse ---
 if not df.empty and "Jours en Hausse" in df.columns and "Jours en Baisse" in df.columns:
     st.subheader("📈 Jours en Hausse vs Baisse")
     fig = px.bar(df, x="Titre", y=["Jours en Hausse", "Jours en Baisse"],
@@ -89,7 +86,7 @@ if not df.empty and "Jours en Hausse" in df.columns and "Jours en Baisse" in df.
 else:
     st.warning("⚠️ Données manquantes ou colonnes absentes : graphique non affiché.")
 
-# --- Graphique des variations
+# --- GRAPHIQUE : Variations Totales ---
 if "Variation Totale (%)" in df.columns and "Recommandation" in df.columns:
     st.subheader("📊 Variation Totale (%)")
     fig2 = px.bar(df.sort_values(by="Variation Totale (%)", ascending=False),
@@ -104,21 +101,12 @@ if "Variation Totale (%)" in df.columns and "Recommandation" in df.columns:
 else:
     st.warning("⚠️ Colonnes pour variation/recommandation manquantes.")
 
-# --- Lecture YTD ---
-@st.cache_data
-def load_ytd():
-    try:
-        return pd.read_excel(DATA_FILE, sheet_name='Top_YTD')
-    except:
-        return pd.DataFrame()
-
-ytd_df = load_ytd()
-if not ytd_df.empty:
+# --- TOP 10 YTD ---
+if not df_ytd.empty:
     st.subheader("🚀 Top 10 Progressions depuis le début de l'année")
-    st.dataframe(ytd_df, use_container_width=True)
+    st.dataframe(df_ytd, use_container_width=True)
 
-    fig_ytd = px.bar(ytd_df.sort_values(by="Progression YTD (%)", ascending=True),
+    fig_ytd = px.bar(df_ytd.sort_values(by="Progression YTD (%)", ascending=True),
                      x="Progression YTD (%)", y="Titre", orientation='h',
-                     title="Top 10 YTD")
+                     title="Top Performers YTD")
     st.plotly_chart(fig_ytd, use_container_width=True)
-
