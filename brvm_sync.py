@@ -1,3 +1,4 @@
+
 import os
 import json
 import re
@@ -10,13 +11,11 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 from pandas import Timestamp
 
-# --- CONFIG ---
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
 FOLDER_ID = '1w2W-SI19l3qgpJKOEGCIiKS2fOIwx3OY'
 BULLETIN_DIR = 'bulletins'
 DATA_FILE = 'data/recommandations.xlsx'
 
-# --- Authentification Google Drive ---
 def authenticate_drive():
     with open("credentials.json") as f:
         creds_info = json.load(f)
@@ -25,7 +24,6 @@ def authenticate_drive():
     creds = Credentials.from_authorized_user_info(token_info, SCOPES)
     return build('drive', 'v3', credentials=creds)
 
-# --- Téléchargement des PDF ---
 def download_bulletins():
     os.makedirs(BULLETIN_DIR, exist_ok=True)
     service = authenticate_drive()
@@ -43,7 +41,6 @@ def download_bulletins():
                     _, done = downloader.next_chunk()
             print(f"⬇️ Téléchargé : {name}")
 
-# --- Extraction PDF vers données ---
 def extract_top_movers_from_pdf(path, date_str):
     with fitz.open(path) as doc:
         text = "\n".join(page.get_text() for page in doc)
@@ -84,7 +81,6 @@ def extract_top_movers_from_pdf(path, date_str):
             i += 1
     return data
 
-# --- Mise à jour du portefeuille ---
 def update_portfolio():
     all_data = []
     os.makedirs('data', exist_ok=True)
@@ -101,7 +97,6 @@ def update_portfolio():
     df = pd.DataFrame(all_data)
     df['date'] = pd.to_datetime(df['date'])
 
-    # --- Analyse stratégie ---
     last_days = df['date'].max() - pd.Timedelta(days=7)
     recent_df = df[df['date'] >= last_days]
     strategies = {}
@@ -119,7 +114,6 @@ def update_portfolio():
             strategie = "➖ Neutre"
         strategies[titre] = strategie
 
-    # --- Recommandation cumulée ---
     stats = defaultdict(lambda: {
         'hausses': 0, 'baisses': 0, 'total_var': 0.0,
         'last_var': 0.0, 'last_date': Timestamp.min
@@ -144,7 +138,6 @@ def update_portfolio():
             reco = '🔴 Vente'
         else:
             reco = '🟡 Observer'
-
         portfolio.append({
             'Titre': titre,
             'Jours en Hausse': st['hausses'],
@@ -157,32 +150,27 @@ def update_portfolio():
 
     df_final = pd.DataFrame(portfolio).sort_values(by='Variation Totale (%)', ascending=False)
 
-    # --- Progression YTD (rendement composé) ---
+    # Progression YTD - on filtre les valeurs aberrantes
     df['annee'] = df['date'].dt.year
     current_year = datetime.now().year
-    ytd_df = df[df['annee'] == current_year].copy()
-    ytd_df = ytd_df[ytd_df['variation_jour'].between(-50, 50)]  # Filtres ±50%
-
+    ytd_df = df[
+        (df['annee'] == current_year) &
+        (df['variation_jour'].between(-50, 50))
+    ].copy()
     ytd_df['multiplicateur'] = 1 + ytd_df['variation_jour'] / 100
-    ytd_perf = (
-        ytd_df.groupby('titre')['multiplicateur']
-        .prod()
-        .reset_index()
-    )
+    ytd_perf = ytd_df.groupby('titre')['multiplicateur'].prod().reset_index()
     ytd_perf['Progression YTD (%)'] = (ytd_perf['multiplicateur'] - 1) * 100
     ytd_perf.drop(columns=['multiplicateur'], inplace=True)
     ytd_perf = ytd_perf.rename(columns={'titre': 'Titre'})
     ytd_perf['Progression YTD (%)'] = ytd_perf['Progression YTD (%)'].round(2)
     ytd_top10 = ytd_perf.sort_values(by='Progression YTD (%)', ascending=False).head(10)
 
-    # --- Export Excel ---
     with pd.ExcelWriter(DATA_FILE, engine='openpyxl', mode='w') as writer:
         df_final.to_excel(writer, sheet_name='Recommandations', index=False)
         ytd_top10.to_excel(writer, sheet_name='Top_YTD', index=False)
 
     print("✅ Fichier Excel mis à jour :", DATA_FILE)
 
-# --- Lancement ---
 if __name__ == "__main__":
     download_bulletins()
     update_portfolio()
