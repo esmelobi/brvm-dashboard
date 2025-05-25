@@ -1,5 +1,4 @@
 import os
-import io
 import json
 import re
 import fitz
@@ -10,30 +9,23 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 from pandas import Timestamp
-stats = defaultdict(lambda: {
-    'hausses': 0,
-    'baisses': 0,
-    'total_var': 0.0,
-    'last_var': 0.0,
-    'last_date': Timestamp.min
-})
 
+# --- CONFIG ---
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
-FOLDER_ID = '1w2W-SI19l3qgpJKOEGCIiKS2fOIwx3OY'  # 🔁 Mets ici l'ID de ton dossier Drive
+FOLDER_ID = '1w2W-SI19l3qgpJKOEGCIiKS2fOIwx3OY'
 BULLETIN_DIR = 'bulletins'
 DATA_FILE = 'data/recommandations.xlsx'
 
-# 🔐 Authentification sans interaction
+# --- Authentification Google Drive ---
 def authenticate_drive():
     with open("credentials.json") as f:
         creds_info = json.load(f)
     with open("token.json") as f:
         token_info = json.load(f)
-
     creds = Credentials.from_authorized_user_info(token_info, SCOPES)
     return build('drive', 'v3', credentials=creds)
 
-# 📥 Téléchargement
+# --- Téléchargement des PDF ---
 def download_bulletins():
     os.makedirs(BULLETIN_DIR, exist_ok=True)
     service = authenticate_drive()
@@ -51,7 +43,7 @@ def download_bulletins():
                     _, done = downloader.next_chunk()
             print(f"⬇️ Téléchargé : {name}")
 
-# 🧠 Extraction verticale des tops hausses/baisses
+# --- Extraction PDF vers données ---
 def extract_top_movers_from_pdf(path, date_str):
     with fitz.open(path) as doc:
         text = "\n".join(page.get_text() for page in doc)
@@ -92,7 +84,7 @@ def extract_top_movers_from_pdf(path, date_str):
             i += 1
     return data
 
-# 📊 Mise à jour du portefeuille
+# --- Mise à jour du portefeuille ---
 def update_portfolio():
     all_data = []
     os.makedirs('data', exist_ok=True)
@@ -107,18 +99,16 @@ def update_portfolio():
             all_data.extend(extract_top_movers_from_pdf(path, date_str))
 
     df = pd.DataFrame(all_data)
-
-    # --- Analyse stratégique sur 7 jours ---
     df['date'] = pd.to_datetime(df['date'])
+
+    # --- Analyse stratégie ---
     last_days = df['date'].max() - pd.Timedelta(days=7)
     recent_df = df[df['date'] >= last_days]
-
     strategies = {}
     for titre, group in recent_df.groupby('titre'):
         nb_hausses = group[group['type'] == 'hausse'].shape[0]
         nb_baisses = group[group['type'] == 'baisse'].shape[0]
         variation_totale = group['variation_jour'].sum()
-
         if nb_hausses >= 3 and variation_totale > 5:
             strategie = "✅ Renforcer"
         elif nb_baisses >= 3 and variation_totale < -5:
@@ -127,11 +117,14 @@ def update_portfolio():
             strategie = "👀 À surveiller"
         else:
             strategie = "➖ Neutre"
-
         strategies[titre] = strategie
 
-    # --- Calcul des stats et recommandations ---
-    #stats = defaultdict(lambda: {'hausses': 0, 'baisses': 0, 'total_var': 0.0, 'last_var': 0.0, 'last_date': ''})
+    # --- Recommandation cumulée ---
+    stats = defaultdict(lambda: {
+        'hausses': 0, 'baisses': 0, 'total_var': 0.0,
+        'last_var': 0.0, 'last_date': Timestamp.min
+    })
+
     for _, row in df.iterrows():
         t = row['titre']
         if row['type'] == 'hausse':
@@ -162,41 +155,26 @@ def update_portfolio():
             'Stratégie': strategies.get(titre, "Non évalué")
         })
 
-    df_final = pd.DataFrame(portfolio)
-    df_final = df_final.sort_values(by='Variation Totale (%)', ascending=False)
+    df_final = pd.DataFrame(portfolio).sort_values(by='Variation Totale (%)', ascending=False)
 
-    # --- DEBUG : Afficher colonnes et exemple ---
-    print("📋 Colonnes du fichier :", df_final.columns.tolist())
-    print("🧠 Extrait stratégie :")
-    print(df_final[["Titre", "Stratégie"]].head())
-
-    df_final.to_excel(DATA_FILE, index=False)
-    print("✅ Recommandations mises à jour dans :", DATA_FILE)
-
-    # --- Calcul des performances depuis le début de l'année ---
+    # --- Performance YTD correcte ---
     df['annee'] = df['date'].dt.year
     current_year = datetime.now().year
-    ytd_df = df[df['annee'] == current_year]
-    
-    #ytd_perf = ytd_df.groupby('titre')['variation_jour'].sum().reset_index()
-    #ytd_perf.columns = ['Titre', 'Progression YTD (%)']
-    def calc_cumulative_perf(group):
-        perf = (group['variation_jour'] / 100 + 1).prod() - 1
-        return round(perf * 100, 2)
+    ytd_df = df[df['annee'] == current_year].copy()
+    ytd_df['multiplicateur'] = 1 + ytd_df['variation_jour'] / 100
+    ytd_perf = ytd_df.groupby('titre')['multiplicateur'].prod().reset_index()
+    ytd_perf['Progression YTD (%)'] = (ytd_perf['multiplicateur'] - 1) * 100
+    ytd_top10 = ytd_perf[['titre', 'Progression YTD (%)']].rename(columns={'titre': 'Titre'})
+    ytd_top10 = ytd_top10.sort_values(by='Progression YTD (%)', ascending=False).head(10)
 
-    ytd_perf = ytd_df.groupby('titre').apply(calc_cumulative_perf).reset_index()
-    ytd_perf.columns = ['Titre', 'Progression YTD (%)']
-
-    ytd_top10 = ytd_perf.sort_values(by='Progression YTD (%)', ascending=False).head(10)
-    # --- Écriture multi-feuilles Excel ---
+    # --- Export Excel multi-feuilles ---
     with pd.ExcelWriter(DATA_FILE, engine='openpyxl', mode='w') as writer:
         df_final.to_excel(writer, sheet_name='Recommandations', index=False)
         ytd_top10.to_excel(writer, sheet_name='Top_YTD', index=False)
 
-    print("✅ Recommandations mises à jour dans :", DATA_FILE)
+    print("✅ Fichier Excel mis à jour :", DATA_FILE)
 
-
-# 🚀 Exécution
+# --- Lancer ---
 if __name__ == "__main__":
     download_bulletins()
     update_portfolio()
