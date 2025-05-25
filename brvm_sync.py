@@ -9,6 +9,14 @@ from datetime import datetime
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
+from pandas import Timestamp
+stats = defaultdict(lambda: {
+    'hausses': 0,
+    'baisses': 0,
+    'total_var': 0.0,
+    'last_var': 0.0,
+    'last_date': Timestamp.min
+})
 
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
 FOLDER_ID = '1w2W-SI19l3qgpJKOEGCIiKS2fOIwx3OY'  # 🔁 Mets ici l'ID de ton dossier Drive
