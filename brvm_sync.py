@@ -187,10 +187,6 @@ def update_portfolio():
         ytd_top10.to_excel(writer, sheet_name='Top_YTD', index=False)
 
     print("✅ Recommandations mises à jour dans :", DATA_FILE)
-    
-# Sauvegarde en feuille Excel séparée
-with pd.ExcelWriter(DATA_FILE, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
-    ytd_top10.to_excel(writer, sheet_name='Top_YTD', index=False)
 
 
 # 🚀 Exécution
