@@ -101,7 +101,7 @@ def update_portfolio():
     df = pd.DataFrame(all_data)
     df['date'] = pd.to_datetime(df['date'])
 
-    # --- Analyse stratégie ---
+    # --- Analyse stratégique sur 7 jours ---
     last_days = df['date'].max() - pd.Timedelta(days=7)
     recent_df = df[df['date'] >= last_days]
     strategies = {}
@@ -119,7 +119,7 @@ def update_portfolio():
             strategie = "➖ Neutre"
         strategies[titre] = strategie
 
-    # --- Recommandation cumulée ---
+    # --- Calcul recommandations ---
     stats = defaultdict(lambda: {
         'hausses': 0, 'baisses': 0, 'total_var': 0.0,
         'last_var': 0.0, 'last_date': Timestamp.min
@@ -157,7 +157,7 @@ def update_portfolio():
 
     df_final = pd.DataFrame(portfolio).sort_values(by='Variation Totale (%)', ascending=False)
 
-    # --- Performance YTD correcte ---
+    # --- Progression YTD (rendement composé) ---
     df['annee'] = df['date'].dt.year
     current_year = datetime.now().year
     ytd_df = df[df['annee'] == current_year].copy()
@@ -165,16 +165,17 @@ def update_portfolio():
     ytd_perf = ytd_df.groupby('titre')['multiplicateur'].prod().reset_index()
     ytd_perf['Progression YTD (%)'] = (ytd_perf['multiplicateur'] - 1) * 100
     ytd_top10 = ytd_perf[['titre', 'Progression YTD (%)']].rename(columns={'titre': 'Titre'})
+    ytd_top10['Progression YTD (%)'] = ytd_top10['Progression YTD (%)'].round(2)
     ytd_top10 = ytd_top10.sort_values(by='Progression YTD (%)', ascending=False).head(10)
 
-    # --- Export Excel multi-feuilles ---
+    # --- Sauvegarde Excel (multi-feuilles) ---
     with pd.ExcelWriter(DATA_FILE, engine='openpyxl', mode='w') as writer:
         df_final.to_excel(writer, sheet_name='Recommandations', index=False)
         ytd_top10.to_excel(writer, sheet_name='Top_YTD', index=False)
 
     print("✅ Fichier Excel mis à jour :", DATA_FILE)
 
-# --- Lancer ---
+# --- Exécution principale ---
 if __name__ == "__main__":
     download_bulletins()
     update_portfolio()
