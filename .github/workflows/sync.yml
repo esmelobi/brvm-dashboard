@@ -24,8 +24,8 @@ jobs:
 
       - name: 🔐 Décoder les fichiers d'auth depuis base64
         run: |
-          echo "${{ secrets.CREDENTIALS_B64 }}" | base64 -d > credentials.json
-          echo "${{ secrets.TOKEN_B64 }}" | base64 -d > token.json
+          echo "${{ secrets.CREDENTIALS_JSON_B64 }}" | base64 -d > credentials.json
+          echo "${{ secrets.TOKEN_JSON_B64 }}" | base64 -d > token.json
 
      
       - name: 👀 Afficher le début de credentials.json
