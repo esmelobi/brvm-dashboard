@@ -103,3 +103,22 @@ if "Variation Totale (%)" in df.columns and "Recommandation" in df.columns:
     st.plotly_chart(fig2, use_container_width=True)
 else:
     st.warning("⚠️ Colonnes pour variation/recommandation manquantes.")
+
+# --- Lecture YTD ---
+@st.cache_data
+def load_ytd():
+    try:
+        return pd.read_excel(DATA_FILE, sheet_name='Top_YTD')
+    except:
+        return pd.DataFrame()
+
+ytd_df = load_ytd()
+if not ytd_df.empty:
+    st.subheader("🚀 Top 10 Progressions depuis le début de l'année")
+    st.dataframe(ytd_df, use_container_width=True)
+
+    fig_ytd = px.bar(ytd_df.sort_values(by="Progression YTD (%)", ascending=True),
+                     x="Progression YTD (%)", y="Titre", orientation='h',
+                     title="Top 10 YTD")
+    st.plotly_chart(fig_ytd, use_container_width=True)
+
