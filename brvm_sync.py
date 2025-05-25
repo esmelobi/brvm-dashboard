@@ -131,7 +131,7 @@ def update_portfolio():
         strategies[titre] = strategie
 
     # --- Calcul des stats et recommandations ---
-    stats = defaultdict(lambda: {'hausses': 0, 'baisses': 0, 'total_var': 0.0, 'last_var': 0.0, 'last_date': ''})
+    #stats = defaultdict(lambda: {'hausses': 0, 'baisses': 0, 'total_var': 0.0, 'last_var': 0.0, 'last_date': ''})
     for _, row in df.iterrows():
         t = row['titre']
         if row['type'] == 'hausse':
