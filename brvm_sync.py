@@ -173,15 +173,21 @@ def update_portfolio():
     df_final.to_excel(DATA_FILE, index=False)
     print("✅ Recommandations mises à jour dans :", DATA_FILE)
 
-# --- Calcul des performances depuis le début de l'année ---
-df['annee'] = df['date'].dt.year
-current_year = datetime.now().year
-ytd_df = df[df['annee'] == current_year]
+    # --- Calcul des performances depuis le début de l'année ---
+    df['annee'] = df['date'].dt.year
+    current_year = datetime.now().year
+    ytd_df = df[df['annee'] == current_year]
+    
+    ytd_perf = ytd_df.groupby('titre')['variation_jour'].sum().reset_index()
+    ytd_perf.columns = ['Titre', 'Progression YTD (%)']
+    ytd_top10 = ytd_perf.sort_values(by='Progression YTD (%)', ascending=False).head(10)
+    # --- Écriture multi-feuilles Excel ---
+    with pd.ExcelWriter(DATA_FILE, engine='openpyxl', mode='w') as writer:
+        df_final.to_excel(writer, sheet_name='Recommandations', index=False)
+        ytd_top10.to_excel(writer, sheet_name='Top_YTD', index=False)
 
-ytd_perf = ytd_df.groupby('titre')['variation_jour'].sum().reset_index()
-ytd_perf.columns = ['Titre', 'Progression YTD (%)']
-ytd_top10 = ytd_perf.sort_values(by='Progression YTD (%)', ascending=False).head(10)
-
+    print("✅ Recommandations mises à jour dans :", DATA_FILE)
+    
 # Sauvegarde en feuille Excel séparée
 with pd.ExcelWriter(DATA_FILE, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
     ytd_top10.to_excel(writer, sheet_name='Top_YTD', index=False)
