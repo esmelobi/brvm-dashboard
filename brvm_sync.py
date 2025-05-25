@@ -178,8 +178,15 @@ def update_portfolio():
     current_year = datetime.now().year
     ytd_df = df[df['annee'] == current_year]
     
-    ytd_perf = ytd_df.groupby('titre')['variation_jour'].sum().reset_index()
+    #ytd_perf = ytd_df.groupby('titre')['variation_jour'].sum().reset_index()
+    #ytd_perf.columns = ['Titre', 'Progression YTD (%)']
+    def calc_cumulative_perf(group):
+        perf = (group['variation_jour'] / 100 + 1).prod() - 1
+        return round(perf * 100, 2)
+
+    ytd_perf = ytd_df.groupby('titre').apply(calc_cumulative_perf).reset_index()
     ytd_perf.columns = ['Titre', 'Progression YTD (%)']
+
     ytd_top10 = ytd_perf.sort_values(by='Progression YTD (%)', ascending=False).head(10)
     # --- Écriture multi-feuilles Excel ---
     with pd.ExcelWriter(DATA_FILE, engine='openpyxl', mode='w') as writer:
