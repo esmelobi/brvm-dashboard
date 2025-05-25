@@ -161,8 +161,9 @@ def update_portfolio():
     df['annee'] = df['date'].dt.year
     current_year = datetime.now().year
     ytd_df = df[df['annee'] == current_year].copy()
-    ytd_df['multiplicateur'] = 1 + ytd_df['variation_jour'] / 100
+    ytd_df = ytd_df[ytd_df['variation_jour'].between(-50, 50)]  # Filtres ±50%
 
+    ytd_df['multiplicateur'] = 1 + ytd_df['variation_jour'] / 100
     ytd_perf = (
         ytd_df.groupby('titre')['multiplicateur']
         .prod()
