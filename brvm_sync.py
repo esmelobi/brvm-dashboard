@@ -21,7 +21,7 @@ def download_latest_bulletins(n_days=7):
         path = os.path.join(BULLETIN_DIR, filename)
         if os.path.exists(path):
             continue
-        r = requests.get(url)
+        r = requests.get(url, verify=False)
         if r.status_code == 200:
             with open(path, 'wb') as f:
                 f.write(r.content)
