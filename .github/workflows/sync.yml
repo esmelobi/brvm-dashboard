@@ -2,8 +2,8 @@ name: BRVM Sync Auto
 
 on:
   schedule:
-    - cron: '0 7 * * *'   # ⏰ tous les jours à 7h UTC (ajuste si besoin)
-  workflow_dispatch:       # permet de le lancer manuellement aussi
+    - cron: '0 7 * * *'   # ⏰ tous les jours à 7h UTC
+  workflow_dispatch:       # 🖱️ permet aussi un déclenchement manuel
 
 jobs:
   sync:
@@ -20,18 +20,7 @@ jobs:
 
       - name: 📦 Installer les dépendances
         run: |
-          pip install pandas PyMuPDF google-api-python-client google-auth google-auth-oauthlib openpyxl
-
-      - name: 🔐 Décoder les fichiers d'auth depuis base64
-        run: |
-          echo "${{ secrets.CREDENTIALS_JSON_B64 }}" | base64 -d > credentials.json
-          echo "${{ secrets.TOKEN_JSON_B64 }}" | base64 -d > token.json
-
-     
-      - name: 👀 Afficher le début de credentials.json
-        run: |
-          head -n 5 credentials.json
-          head -n 5 token.json
+          pip install -r requirements.txt
 
       - name: 🔄 Exécuter le script de synchronisation
         run: python brvm_sync.py
