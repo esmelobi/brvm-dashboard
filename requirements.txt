@@ -2,3 +2,4 @@ pandas>=2.0.0
 requests>=2.25.0
 PyMuPDF>=1.21.0
 openpyxl>=3.1.0
+plotly
